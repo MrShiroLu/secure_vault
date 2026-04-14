@@ -13,6 +13,10 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-change-in-prod')
 
     init_db(app)
+
+    from routes.auth_routes import auth_bp
+    app.register_blueprint(auth_bp)
+
     return app
 
 

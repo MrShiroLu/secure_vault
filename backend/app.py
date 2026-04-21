@@ -15,7 +15,9 @@ def create_app():
     init_db(app)
 
     from routes.auth_routes import auth_bp
+    from routes.vault_routes import vault_bp
     app.register_blueprint(auth_bp)
+    app.register_blueprint(vault_bp)
 
     return app
 

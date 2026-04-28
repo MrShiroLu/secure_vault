@@ -123,3 +123,82 @@ def delete_document(item_id):
     db.session.delete(item)
     db.session.commit()
     return jsonify({'message': 'Belge silindi'}), 200
+
+
+# ── RSA Dijital İmzalama ──────────────────────────────────────────────────────
+
+@vault_bp.route('/vault/sign/<int:item_id>', methods=['POST'])
+@jwt_required
+def sign_document(item_id):
+    item = VaultItem.query.get_or_404(item_id)
+    if item.user_id != g.user_id:
+        return jsonify({'error': 'Erişim reddedildi'}), 403
+
+    user = User.query.get(g.user_id)
+    data_to_sign = item.sha256_hash.encode()
+    item.signature = rsa_sign(user.private_key, data_to_sign)
+    item.signed_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({'message': 'Belge imzalandı', 'signed_at': item.signed_at.isoformat()}), 200
+
+
+@vault_bp.route('/vault/verify/<int:item_id>', methods=['GET'])
+@jwt_required
+def verify_document(item_id):
+    item = VaultItem.query.get_or_404(item_id)
+    if item.user_id != g.user_id:
+        return jsonify({'error': 'Erişim reddedildi'}), 403
+    if not item.signature:
+        return jsonify({'valid': False, 'reason': 'Belge imzalanmamış'}), 200
+
+    user = User.query.get(g.user_id)
+    valid = rsa_verify(user.public_key, item.sha256_hash.encode(), item.signature)
+    return jsonify({
+        'valid': valid,
+        'signed_by': user.email,
+        'signed_at': item.signed_at.isoformat() if item.signed_at else None,
+        'sha256': item.sha256_hash,
+    }), 200
+
+
+# ── Paylaşım Token'ı ──────────────────────────────────────────────────────────
+
+@vault_bp.route('/vault/share/create/<int:item_id>', methods=['POST'])
+@jwt_required
+def create_share_token(item_id):
+    item = VaultItem.query.get_or_404(item_id)
+    if item.user_id != g.user_id:
+        return jsonify({'error': 'Erişim reddedildi'}), 403
+    if not item.signature:
+        return jsonify({'error': 'Yalnızca imzalı belgeler paylaşılabilir'}), 400
+
+    token = ShareToken(
+        vault_item_id=item_id,
+        token=str(uuid.uuid4()),
+        expires_at=datetime.utcnow() + timedelta(hours=24),
+    )
+    db.session.add(token)
+    db.session.commit()
+    return jsonify({'token': token.token, 'expires_at': token.expires_at.isoformat()}), 201
+
+
+@vault_bp.route('/vault/share/<string:token>', methods=['GET'])
+def view_shared_document(token):
+    share = ShareToken.query.filter_by(token=token).first()
+    if not share:
+        return jsonify({'error': 'Geçersiz token'}), 404
+    if share.expires_at < datetime.utcnow():
+        return jsonify({'error': 'Token süresi dolmuş'}), 410
+
+    item = share.vault_item
+    user = User.query.get(item.user_id)
+    valid = rsa_verify(user.public_key, item.sha256_hash.encode(), item.signature)
+
+    return jsonify({
+        'name': item.name,
+        'type': item.data_type,
+        'valid': valid,
+        'signed_by': user.email,
+        'signed_at': item.signed_at.isoformat() if item.signed_at else None,
+        'sha256': item.sha256_hash,
+    }), 200

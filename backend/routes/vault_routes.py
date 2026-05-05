@@ -36,37 +36,41 @@ def _mask(data_type: str, value: str) -> str:
 @vault_bp.route('/vault/add', methods=['POST'])
 @jwt_required
 def add_document():
-    data = request.get_json(silent=True) or {}
-    name = (data.get('name') or '').strip()
-    data_type = (data.get('type') or '').strip().lower()
-    value = (data.get('value') or '').strip()
+    try:
+        data = request.get_json(silent=True) or {}
+        name = (data.get('name') or '').strip()
+        data_type = (data.get('type') or '').strip().lower()
+        value = (data.get('value') or '').strip()
 
-    if not name or not data_type or not value:
-        return jsonify({'error': 'name, type ve value zorunlu'}), 400
-    if data_type not in ('iban', 'kredi_karti', 'tc_kimlik', 'eposta', 'telefon'):
-        return jsonify({'error': 'Geçersiz belge türü'}), 400
+        if not name or not data_type or not value:
+            return jsonify({'error': 'name, type ve value zorunlu'}), 400
+        if data_type not in ('iban', 'kredi_karti', 'tc_kimlik', 'eposta', 'telefon'):
+            return jsonify({'error': 'Geçersiz belge türü'}), 400
 
-    user = User.query.get(g.user_id)
+        user = User.query.get(g.user_id)
 
-    aes_key = generate_aes_key()
-    enc = aes_encrypt(aes_key, value.encode())
-    encrypted_aes_key = rsa_encrypt_key(user.public_key, aes_key)
-    integrity_hash = sha256_hash(base64.b64decode(enc['ciphertext']))
+        aes_key = generate_aes_key()
+        enc = aes_encrypt(aes_key, value.encode())
+        encrypted_aes_key = rsa_encrypt_key(user.public_key, aes_key)
+        integrity_hash = sha256_hash(base64.b64decode(enc['ciphertext']))
 
-    item = VaultItem(
-        user_id=g.user_id,
-        name=name,
-        data_type=data_type,
-        ciphertext=enc['ciphertext'],
-        iv=enc['iv'],
-        auth_tag=enc['auth_tag'],
-        encrypted_aes_key=encrypted_aes_key,
-        sha256_hash=integrity_hash,
-        masked_preview=_mask(data_type, value),
-    )
-    db.session.add(item)
-    db.session.commit()
-    return jsonify({'id': item.id, 'message': 'Belge eklendi'}), 201
+        item = VaultItem(
+            user_id=g.user_id,
+            name=name,
+            data_type=data_type,
+            ciphertext=enc['ciphertext'],
+            iv=enc['iv'],
+            auth_tag=enc['auth_tag'],
+            encrypted_aes_key=encrypted_aes_key,
+            sha256_hash=integrity_hash,
+            masked_preview=_mask(data_type, value),
+        )
+        db.session.add(item)
+        db.session.commit()
+        return jsonify({'id': item.id, 'message': 'Belge eklendi'}), 201
+    except Exception:
+        db.session.rollback()
+        return jsonify({'error': 'Belge eklenirken hata oluştu'}), 500
 
 
 @vault_bp.route('/vault/list', methods=['GET'])
@@ -130,16 +134,19 @@ def delete_document(item_id):
 @vault_bp.route('/vault/sign/<int:item_id>', methods=['POST'])
 @jwt_required
 def sign_document(item_id):
-    item = VaultItem.query.get_or_404(item_id)
-    if item.user_id != g.user_id:
-        return jsonify({'error': 'Erişim reddedildi'}), 403
+    try:
+        item = VaultItem.query.get_or_404(item_id)
+        if item.user_id != g.user_id:
+            return jsonify({'error': 'Erişim reddedildi'}), 403
 
-    user = User.query.get(g.user_id)
-    data_to_sign = item.sha256_hash.encode()
-    item.signature = rsa_sign(user.private_key, data_to_sign)
-    item.signed_at = datetime.utcnow()
-    db.session.commit()
-    return jsonify({'message': 'Belge imzalandı', 'signed_at': item.signed_at.isoformat()}), 200
+        user = User.query.get(g.user_id)
+        item.signature = rsa_sign(user.private_key, item.sha256_hash.encode())
+        item.signed_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({'message': 'Belge imzalandı', 'signed_at': item.signed_at.isoformat()}), 200
+    except Exception:
+        db.session.rollback()
+        return jsonify({'error': 'İmzalama sırasında hata oluştu'}), 500
 
 
 @vault_bp.route('/vault/verify/<int:item_id>', methods=['GET'])

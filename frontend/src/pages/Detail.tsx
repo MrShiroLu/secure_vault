@@ -15,6 +15,7 @@ function Detail() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isValueRevealed, setIsValueRevealed] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
@@ -27,6 +28,7 @@ function Detail() {
 
       setIsLoading(true);
       setError("");
+      setIsValueRevealed(false);
 
       try {
         setItem(await getVaultItem(id));
@@ -109,10 +111,24 @@ function Detail() {
           </div>
 
           <div className="mt-6 rounded-md border border-slate-800 bg-slate-950 p-4">
-            <div className="text-sm font-medium text-slate-400">Şifreyi Çöz</div>
-            <p className="mt-2 break-words text-lg text-slate-100">
-              {item.value}
-            </p>
+            {isValueRevealed ? (
+              <>
+                <div className="text-sm font-medium text-slate-400">
+                  Çözülmüş değer
+                </div>
+                <p className="mt-2 break-words text-lg text-slate-100">
+                  {item.value}
+                </p>
+              </>
+            ) : (
+              <button
+                className="rounded-md bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+                onClick={() => setIsValueRevealed(true)}
+                type="button"
+              >
+                Şifreyi Çöz
+              </button>
+            )}
           </div>
 
           <div className="mt-6 flex flex-wrap gap-2">

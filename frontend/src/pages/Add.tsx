@@ -25,7 +25,9 @@ function Add() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const normalizedValue = value.replace(/\s/g, "").trim();
+  const normalizedValue =
+    type === "kredi_karti" ? value : value.replace(/\s/g, "").trim();
+  const displayValue = type === "kredi_karti" ? maskCreditCard(value) : value;
   const valueError = useMemo(
     () => getFieldError(type, normalizedValue),
     [normalizedValue, type],
@@ -63,7 +65,7 @@ function Add() {
 
   function handleValueChange(nextValue: string) {
     if (type === "kredi_karti") {
-      setValue(maskCreditCard(nextValue));
+      setValue(nextValue.replace(/\D/g, "").slice(0, 16));
       return;
     }
 
@@ -116,7 +118,7 @@ function Add() {
           <input
             className={[
               "mt-2 w-full rounded-md border bg-slate-950 px-3 py-2 text-slate-100 outline-none transition placeholder:text-slate-500",
-              value
+              displayValue
                 ? isValueValid
                   ? "border-emerald-400 focus:border-emerald-300"
                   : "border-red-400 focus:border-red-300"
@@ -125,9 +127,9 @@ function Add() {
             onChange={(event) => handleValueChange(event.target.value)}
             placeholder={fieldLabels[type]}
             type="text"
-            value={value}
+            value={displayValue}
           />
-          {value && valueError && (
+          {displayValue && valueError && (
             <span className="mt-1 block text-sm text-red-300">
               {valueError}
             </span>

@@ -71,7 +71,11 @@ function AuthForm({ title, description, submitLabel, mode }: AuthFormProps) {
       navigate("/login");
     } catch (error) {
       if (axios.isAxiosError<{ error?: string }>(error)) {
-        setStatusMessage(error.response?.data.error ?? "İstek tamamlanamadı.");
+        if (mode === "register" && error.response?.status === 409) {
+          setStatusMessage("Bu e-posta ile kayıt zaten var. Giriş yapabilirsiniz.");
+        } else {
+          setStatusMessage(error.response?.data.error ?? "İstek tamamlanamadı.");
+        }
       } else {
         setStatusMessage("Beklenmeyen bir hata oluştu.");
       }

@@ -1,4 +1,5 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
+import { clearAuthToken } from "./auth";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
@@ -19,3 +20,19 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (
+      axios.isAxiosError(error) &&
+      error.response?.status === 401 &&
+      error.config?.url !== "/api/login"
+    ) {
+      clearAuthToken();
+      window.location.assign("/login");
+    }
+
+    return Promise.reject(error);
+  },
+);

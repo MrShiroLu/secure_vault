@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { clearAuthToken, isAuthenticated } from "../lib/auth";
 
 type AppLayoutProps = {
   children: ReactNode;
@@ -8,11 +9,22 @@ type AppLayoutProps = {
 const navItems = [
   { to: "/vault", label: "Kasa" },
   { to: "/vault/add", label: "Veri Ekle" },
+];
+
+const authItems = [
   { to: "/login", label: "Giriş" },
   { to: "/register", label: "Kayıt" },
 ];
 
 function AppLayout({ children }: AppLayoutProps) {
+  const navigate = useNavigate();
+  const authenticated = isAuthenticated();
+
+  function handleLogout() {
+    clearAuthToken();
+    navigate("/login");
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800 bg-slate-950/95">
@@ -22,22 +34,50 @@ function AppLayout({ children }: AppLayoutProps) {
           </NavLink>
 
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  [
-                    "rounded-md px-3 py-2 text-center text-sm font-medium transition",
-                    isActive
-                      ? "bg-cyan-400 text-slate-950"
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white",
-                  ].join(" ")
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
+            {authenticated ? (
+              <>
+                {navItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      [
+                        "rounded-md px-3 py-2 text-center text-sm font-medium transition",
+                        isActive
+                          ? "bg-cyan-400 text-slate-950"
+                          : "text-slate-300 hover:bg-slate-800 hover:text-white",
+                      ].join(" ")
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+                <button
+                  className="rounded-md px-3 py-2 text-center text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                  onClick={handleLogout}
+                  type="button"
+                >
+                  Çıkış yap
+                </button>
+              </>
+            ) : (
+              authItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    [
+                      "rounded-md px-3 py-2 text-center text-sm font-medium transition",
+                      isActive
+                        ? "bg-cyan-400 text-slate-950"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white",
+                    ].join(" ")
+                  }
+                >
+                  {item.label}
+                </NavLink>
+              ))
+            )}
           </div>
         </nav>
       </header>

@@ -15,6 +15,7 @@ function Verify() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isExpired, setIsExpired] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -27,9 +28,14 @@ function Verify() {
       })
       .catch((requestError: unknown) => {
         if (axios.isAxiosError<{ error?: string }>(requestError)) {
-          setError(
-            requestError.response?.data.error ?? "Doğrulama yapılamadı.",
-          );
+          if (requestError.response?.status === 410) {
+            setIsExpired(true);
+            setError("Paylaşım linkinin süresi dolmuş.");
+          } else {
+            setError(
+              requestError.response?.data.error ?? "Doğrulama yapılamadı.",
+            );
+          }
         } else {
           setError("Beklenmeyen bir hata oluştu.");
         }
@@ -63,9 +69,12 @@ function Verify() {
       <h1 className="text-3xl font-semibold">İmza Doğrulama</h1>
 
       {error && (
-        <p className="mt-6 rounded-md border border-red-400/40 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-          {error}
-        </p>
+        <div className="mt-6 rounded-md border border-red-400/40 bg-red-950/40 p-4 text-red-100">
+          <h2 className="font-semibold">
+            {isExpired ? "Link süresi doldu" : "Doğrulama başarısız"}
+          </h2>
+          <p className="mt-2 text-sm">{error}</p>
+        </div>
       )}
 
       {document && (

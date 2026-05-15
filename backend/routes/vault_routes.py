@@ -164,6 +164,7 @@ def verify_document(item_id):
         'valid': valid,
         'signed_by': user.email,
         'signed_at': item.signed_at.isoformat() if item.signed_at else None,
+        'public_key_summary': sha256_hash(user.public_key.encode())[:16],
         'sha256': item.sha256_hash,
     }), 200
 

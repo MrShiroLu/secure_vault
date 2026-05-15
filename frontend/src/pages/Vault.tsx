@@ -1,6 +1,7 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import Spinner from "../components/Spinner";
 import { deleteVaultItem, listVaultItems, type VaultListItem } from "../lib/vaultApi";
 import { fieldLabels } from "../lib/validators";
 
@@ -74,8 +75,8 @@ function Vault() {
       </div>
 
       {isLoading && (
-        <div className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-6 text-slate-300">
-          Yükleniyor...
+        <div className="mt-8 rounded-lg border border-slate-800 bg-slate-900 p-6">
+          <Spinner />
         </div>
       )}
 
@@ -122,7 +123,7 @@ function Vault() {
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                   <Link
                     className="rounded-md border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
                     to={`/vault/${item.id}`}

@@ -1,9 +1,15 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import Spinner from "../components/Spinner";
+import Toast from "../components/Toast";
 import {
+  createShareToken,
   deleteVaultItem,
   getVaultItem,
+  signVaultItem,
+  verifyVaultItem,
+  type SignatureVerification,
   type VaultDetailItem,
 } from "../lib/vaultApi";
 import { fieldLabels } from "../lib/validators";
@@ -17,6 +23,12 @@ function Detail() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isValueRevealed, setIsValueRevealed] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
+  const [isCreatingShareLink, setIsCreatingShareLink] = useState(false);
+  const [signature, setSignature] = useState<SignatureVerification | null>(
+    null,
+  );
+  const [shareMessage, setShareMessage] = useState("");
 
   useEffect(() => {
     async function loadItem() {
@@ -29,9 +41,17 @@ function Detail() {
       setIsLoading(true);
       setError("");
       setIsValueRevealed(false);
+      setShareMessage("");
 
       try {
-        setItem(await getVaultItem(id));
+        const loadedItem = await getVaultItem(id);
+        setItem(loadedItem);
+
+        if (loadedItem.signed) {
+          setSignature(await verifyVaultItem(loadedItem.id));
+        } else {
+          setSignature(null);
+        }
       } catch (requestError) {
         if (axios.isAxiosError<{ error?: string }>(requestError)) {
           setError(
@@ -70,16 +90,74 @@ function Detail() {
     }
   }
 
+  async function handleSign() {
+    if (!item) {
+      return;
+    }
+
+    setIsSigning(true);
+    setError("");
+    setShareMessage("");
+
+    try {
+      const result = await signVaultItem(item.id);
+      const updatedItem = {
+        ...item,
+        signed: true,
+        signed_at: result.signed_at,
+      };
+      setItem(updatedItem);
+      setSignature(await verifyVaultItem(updatedItem.id));
+    } catch (requestError) {
+      if (axios.isAxiosError<{ error?: string }>(requestError)) {
+        setError(requestError.response?.data.error ?? "Belge imzalanamadı.");
+      } else {
+        setError("Beklenmeyen bir hata oluştu.");
+      }
+    } finally {
+      setIsSigning(false);
+    }
+  }
+
+  async function handleCreateShareLink() {
+    if (!item) {
+      return;
+    }
+
+    setIsCreatingShareLink(true);
+    setError("");
+    setShareMessage("");
+
+    try {
+      const result = await createShareToken(item.id);
+      const verifyUrl = `${window.location.origin}/verify/${result.token}`;
+      await navigator.clipboard.writeText(verifyUrl);
+      setShareMessage("Paylaşım linki kopyalandı.");
+    } catch (requestError) {
+      if (axios.isAxiosError<{ error?: string }>(requestError)) {
+        setError(
+          requestError.response?.data.error ?? "Paylaşım linki oluşturulamadı.",
+        );
+      } else {
+        setError("Beklenmeyen bir hata oluştu.");
+      }
+    } finally {
+      setIsCreatingShareLink(false);
+    }
+  }
+
   if (isLoading) {
     return (
-      <section className="rounded-lg border border-slate-800 bg-slate-900 p-6 text-slate-300">
-        Yükleniyor...
+      <section className="rounded-lg border border-slate-800 bg-slate-900 p-6">
+        <Spinner />
       </section>
     );
   }
 
   return (
     <section className="rounded-lg border border-slate-800 bg-slate-900 p-6">
+      {shareMessage && <Toast message={shareMessage} />}
+
       {error && (
         <p className="rounded-md border border-red-400/40 bg-red-950/40 px-3 py-2 text-sm text-red-200">
           {error}
@@ -108,6 +186,11 @@ function Detail() {
             >
               {item.integrity === "ok" ? "SHA-256 doğrulandı" : "Uyarı"}
             </span>
+            {item.signed && (
+              <span className="rounded-md bg-violet-400 px-3 py-2 text-sm font-semibold text-slate-950">
+                İmzalı
+              </span>
+            )}
           </div>
 
           <div className="mt-6 rounded-md border border-slate-800 bg-slate-950 p-4">
@@ -131,7 +214,29 @@ function Detail() {
             )}
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-2">
+          <div className="mt-6 grid gap-2 sm:flex sm:flex-wrap">
+            <button
+              className="rounded-md bg-violet-400 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-violet-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+              disabled={isSigning || item.signed}
+              onClick={handleSign}
+              type="button"
+            >
+              {isSigning
+                ? "İmzalanıyor..."
+                : item.signed
+                  ? "İmzalandı"
+                  : "İmzala"}
+            </button>
+            <button
+              className="rounded-md bg-cyan-400 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+              disabled={isCreatingShareLink || !item.signed}
+              onClick={handleCreateShareLink}
+              type="button"
+            >
+              {isCreatingShareLink
+                ? "Oluşturuluyor..."
+                : "Paylaşım Linki Oluştur"}
+            </button>
             <Link
               className="rounded-md border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-800"
               to="/vault"
@@ -146,6 +251,44 @@ function Detail() {
               Sil
             </button>
           </div>
+
+          {signature && (
+            <div className="mt-6 rounded-md border border-slate-800 bg-slate-950 p-4">
+              <h2 className="text-lg font-semibold">İmza Detayı</h2>
+              <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div>
+                  <dt className="text-sm text-slate-400">Durum</dt>
+                  <dd className="mt-1 font-medium text-slate-100">
+                    {signature.valid ? "Geçerli" : "Geçersiz"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-slate-400">İmzalayan</dt>
+                  <dd className="mt-1 font-medium text-slate-100">
+                    {signature.signed_by ?? "-"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-slate-400">Tarih</dt>
+                  <dd className="mt-1 font-medium text-slate-100">
+                    {signature.signed_at ?? "-"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-slate-400">Public key özeti</dt>
+                  <dd className="mt-1 font-mono text-sm text-slate-100">
+                    {signature.public_key_summary ?? "-"}
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-sm text-slate-400">SHA-256</dt>
+                  <dd className="mt-1 break-all font-mono text-sm text-slate-100">
+                    {signature.sha256 ?? "-"}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          )}
         </>
       )}
 

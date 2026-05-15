@@ -28,6 +28,29 @@ export type VaultDetailItem = {
   created_at: string;
 };
 
+export type SignatureVerification = {
+  valid: boolean;
+  reason?: string;
+  signed_by?: string;
+  signed_at: string | null;
+  public_key_summary?: string;
+  sha256?: string;
+};
+
+export type ShareTokenResponse = {
+  token: string;
+  expires_at: string;
+};
+
+export type SharedDocumentVerification = {
+  name: string;
+  type: VaultItemType;
+  valid: boolean;
+  signed_by: string;
+  signed_at: string | null;
+  sha256: string;
+};
+
 export type AddVaultItemPayload = {
   name: string;
   type: VaultItemType;
@@ -54,5 +77,31 @@ export async function getVaultItem(id: string) {
 
 export async function deleteVaultItem(id: number) {
   const response = await api.delete<{ message: string }>(`/vault/${id}`);
+  return response.data;
+}
+
+export async function signVaultItem(id: number) {
+  const response = await api.post<{ message: string; signed_at: string }>(
+    `/vault/sign/${id}`,
+  );
+  return response.data;
+}
+
+export async function verifyVaultItem(id: number) {
+  const response = await api.get<SignatureVerification>(`/vault/verify/${id}`);
+  return response.data;
+}
+
+export async function createShareToken(id: number) {
+  const response = await api.post<ShareTokenResponse>(
+    `/vault/share/create/${id}`,
+  );
+  return response.data;
+}
+
+export async function getSharedDocument(token: string) {
+  const response = await api.get<SharedDocumentVerification>(
+    `/vault/share/${token}`,
+  );
   return response.data;
 }

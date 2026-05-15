@@ -5,6 +5,7 @@ import Add from "./pages/Add";
 import Detail from "./pages/Detail";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Verify from "./pages/Verify";
 import Vault from "./pages/Vault";
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
         <Route path="/" element={<Navigate to="/vault" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/verify/:token" element={<Verify />} />
         <Route
           path="/vault"
           element={

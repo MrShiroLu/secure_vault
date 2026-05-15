@@ -21,14 +21,14 @@ function AppLayout({ children }: AppLayoutProps) {
             SecureVault
           </NavLink>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
                   [
-                    "rounded-md px-3 py-2 text-sm font-medium transition",
+                    "rounded-md px-3 py-2 text-center text-sm font-medium transition",
                     isActive
                       ? "bg-cyan-400 text-slate-950"
                       : "text-slate-300 hover:bg-slate-800 hover:text-white",

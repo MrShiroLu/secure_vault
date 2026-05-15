@@ -24,6 +24,14 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(vault_bp)
 
+    @app.after_request
+    def add_cors_headers(response):
+        allowed_origin = os.getenv('FRONTEND_ORIGIN', 'http://localhost:5173')
+        response.headers['Access-Control-Allow-Origin'] = allowed_origin
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, DELETE, OPTIONS'
+        return response
+
     @app.errorhandler(404)
     def not_found(e):
         return jsonify({'error': 'Kaynak bulunamadı'}), 404

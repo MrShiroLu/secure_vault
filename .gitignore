@@ -24,3 +24,5 @@ build/
 
 # Node
 node_modules/
+
+/ignored

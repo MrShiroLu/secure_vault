@@ -13,6 +13,14 @@ export const patterns: Record<FieldType, RegExp> = {
   telefon: /^0[5][0-9]{9}$/,
 };
 
+export const fieldLabels: Record<FieldType, string> = {
+  iban: "IBAN",
+  kredi_karti: "Kredi Kartı",
+  eposta: "E-posta",
+  tc_kimlik: "TC Kimlik No",
+  telefon: "Telefon",
+};
+
 export function validateField(fieldType: FieldType, value: string) {
   if (fieldType === "kredi_karti") {
     return luhnCheck(value);

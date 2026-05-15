@@ -26,8 +26,11 @@ function Add() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const normalizedValue =
-    type === "kredi_karti" ? value : value.replace(/\s/g, "").trim();
-  const displayValue = type === "kredi_karti" ? maskCreditCard(value) : value;
+    type === "kredi_karti"
+      ? value.replace(/\D/g, "")
+      : value.replace(/\s/g, "").trim();
+  const displayValue =
+    type === "kredi_karti" ? maskCreditCard(value) : value;
   const valueError = useMemo(
     () => getFieldError(type, normalizedValue),
     [normalizedValue, type],
@@ -65,11 +68,59 @@ function Add() {
 
   function handleValueChange(nextValue: string) {
     if (type === "kredi_karti") {
-      setValue(nextValue.replace(/\D/g, "").slice(0, 16));
+      if (!nextValue.includes("*")) {
+        setValue(nextValue.replace(/\D/g, "").slice(0, 16));
+      }
       return;
     }
 
     setValue(nextValue);
+  }
+
+  function handleCreditCardKeyDown(
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ) {
+    if (type !== "kredi_karti") {
+      return;
+    }
+
+    if (/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+      setValue((currentValue) => `${currentValue}${event.key}`.slice(0, 16));
+      return;
+    }
+
+    if (event.key === "Backspace") {
+      event.preventDefault();
+      setValue((currentValue) => currentValue.slice(0, -1));
+      return;
+    }
+
+    if (event.key === "Delete") {
+      event.preventDefault();
+      setValue("");
+      return;
+    }
+
+    if (
+      event.key.length === 1 &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey
+    ) {
+      event.preventDefault();
+    }
+  }
+
+  function handleCreditCardPaste(
+    event: React.ClipboardEvent<HTMLInputElement>,
+  ) {
+    if (type !== "kredi_karti") {
+      return;
+    }
+
+    event.preventDefault();
+    setValue(event.clipboardData.getData("text").replace(/\D/g, "").slice(0, 16));
   }
 
   function handleTypeChange(nextType: VaultItemType) {
@@ -125,6 +176,8 @@ function Add() {
                 : "border-slate-700 focus:border-cyan-400",
             ].join(" ")}
             onChange={(event) => handleValueChange(event.target.value)}
+            onKeyDown={handleCreditCardKeyDown}
+            onPaste={handleCreditCardPaste}
             placeholder={fieldLabels[type]}
             type="text"
             value={displayValue}
